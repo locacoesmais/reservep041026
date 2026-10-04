@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReservePro - Gestão de Reservas & Controle Financeiro</title>
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  
+  <!-- Chart.js for Financial Graphics (Local with CDN Fallback) -->
+  <script src="chart.min.js"></script>
+  <script>if (typeof Chart === 'undefined') { document.write('<script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>'); }</script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="brand-title">ReservePro</div>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item">
+          <button class="active" data-view="dashboard">
+            <i class="fas fa-chart-line"></i>
+            <span>Painel Financeiro</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button data-view="reservations">
+            <i class="fas fa-list-check"></i>
+            <span>Todas as Reservas</span>
+          </button>
+        </li>
+        <li class="nav-item">
+          <button data-view="calendar">
+            <i class="fas fa-calendar-days"></i>
+            <span>Calendário (Multi-dias)</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <button class="btn-new-reservation" id="btn-open-modal">
+          <i class="fas fa-plus-circle"></i>
+          <span>Nova Reserva</span>
+        </button>
+        <button class="btn-delete-all-sidebar" onclick="app.deleteAllReservations()" title="Apagar todas as reservas ativas">
+          <i class="fas fa-trash-can"></i>
+          <span>Apagar Todas as Reservas</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Header & Temporal Filter -->
+      <header class="top-header">
+        <div class="header-left-group">
+          <button class="btn-mobile-menu" id="btn-mobile-menu" title="Menu principal">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div class="page-title">
+            <h1>Controle de Reservas & Aluguel de Mesas e Cadeiras</h1>
+            <p>Monitore aluguel de jogos de mesas, cadeiras avulsas, mesas avulsas e forros de mesa em tempo real.</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn-fullscreen" id="btn-fullscreen" title="Alternar Modo Tela Cheia">
+            <i class="fas fa-expand"></i>
+            <span class="fullscreen-text">Tela Cheia</span>
+          </button>
+
+          <label style="font-weight: 700; color: var(--text-muted); font-size: 0.85rem;">Mês/Ano:</label>
+          <select id="filter-month" class="select-control">
+            <option value="0">Janeiro</option>
+            <option value="1">Fevereiro</option>
+            <option value="2">Março</option>
+            <option value="3">Abril</option>
+            <option value="4">Maio</option>
+            <option value="5">Junho</option>
+            <option value="6">Julho</option>
+            <option value="7">Agosto</option>
+            <option value="8">Setembro</option>
+            <option value="9" selected>Outubro</option>
+            <option value="10">Novembro</option>
+            <option value="11">Dezembro</option>
+          </select>
+
+          <select id="filter-year" class="select-control">
+            <option value="2025">2025</option>
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+          </select>
+        </div>
+      </header>
+
+      <!-- VIEW 1: DASHBOARD FINANCEIRO -->
+      <section id="view-dashboard" class="view-section active">
+        
+        <!-- Stats Cards Grid -->
+        <div class="stats-grid">
+          <div class="stat-card total">
+            <div class="stat-header">
+              <span>Faturamento Total</span>
+              <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+            </div>
+            <div class="stat-value" id="kpi-total">R$ 0,00</div>
+            <div class="stat-subtitle">Soma total acumulada no mês</div>
+          </div>
+
+          <div class="stat-card paid">
+            <div class="stat-header">
+              <span>Reservas Pagas</span>
+              <div class="stat-icon"><i class="fas fa-circle-check"></i></div>
+            </div>
+            <div class="stat-value" id="kpi-paid">R$ 0,00</div>
+            <div class="stat-subtitle">Valores confirmados e recebidos</div>
+          </div>
+
+          <div class="stat-card unpaid">
+            <div class="stat-header">
+              <span>Não Pagas / Pendente</span>
+              <div class="stat-icon"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="stat-value" id="kpi-unpaid">R$ 0,00</div>
+            <div class="stat-subtitle">Valores a receber no mês</div>
+          </div>
+
+          <div class="stat-card count">
+            <div class="stat-header">
+              <span>Aluguéis no Mês</span>
+              <div class="stat-icon"><i class="fas fa-chair"></i></div>
+            </div>
+            <div class="stat-value" id="kpi-count">0</div>
+            <div class="stat-subtitle">Total de agendamentos no período</div>
+          </div>
+        </div>
+
+        <!-- Charts Grid (Mês a Mês & Semana a Semana) -->
+        <div class="charts-grid">
+          
+          <!-- Chart 1: Mês a Mês -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3><i class="fas fa-chart-bar" style="color: var(--primary);"></i> Faturamento Mês a Mês (Visão Anual)</h3>
+            </div>
+            <div class="chart-container" id="monthly-container">
+              <canvas id="monthlyRevenueChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 2: Semana a Semana -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3><i class="fas fa-chart-column" style="color: var(--info);"></i> Faturamento Semana a Semana (Mês Selecionado)</h3>
+            </div>
+            <div class="chart-container" id="weekly-container">
+              <canvas id="weeklyRevenueChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- VIEW 2: LISTA DE RESERVAS -->
+      <section id="view-reservations" class="view-section">
+        <div class="table-container">
+          <div class="table-toolbar">
+            <div class="search-box">
+              <i class="fas fa-search"></i>
+              <input type="text" id="search-input" placeholder="Buscar por cliente ou item (ex: jogos de mesa, forro roxo)...">
+            </div>
+
+            <div class="filter-group">
+              <label style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">Filtrar Status:</label>
+              <select id="filter-status" class="select-control">
+                <option value="all">Todas as Reservas</option>
+                <option value="paga">Apenas Pagas ✓</option>
+                <option value="nao_paga">Apenas Não Pagas ⏳</option>
+              </select>
+              <button class="btn-delete-all" onclick="app.deleteAllReservations()" title="Apagar todas as reservas ativas">
+                <i class="fas fa-trash-alt"></i> Apagar Tudo
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Item / Equipamento</th>
+                  <th>Período (Multi-dias)</th>
+                  <th>Valor Total</th>
+                  <th>Forma de Pgto</th>
+                  <th>Status do Pagamento</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="table-body">
+                <!-- Renderizado via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: CALENDÁRIO MULTI-DIAS -->
+      <section id="view-calendar" class="view-section">
+        <div class="calendar-controls">
+          <h2 id="calendar-month-year" style="color: white; font-size: 1.25rem;">Outubro 2026</h2>
+          <small style="color: var(--text-muted);">Visualização gráfica de reservas por múltiplos dias</small>
+        </div>
+
+        <div class="calendar-grid-header">
+          <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+        </div>
+
+        <div id="calendar-days" class="calendar-days-grid">
+          <!-- Renderizado via JavaScript -->
+        </div>
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- MODAL: NOVA / EDITAR RESERVA -->
+  <div class="modal-overlay" id="reservation-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modal-title">Nova Reserva (Multi-dias)</h2>
+        <button class="btn-close-modal" id="btn-close-modal"><i class="fas fa-times"></i></button>
+      </div>
+
+      <form id="reservation-form">
+        <div class="modal-body">
+          <div class="form-grid">
+            
+            <div class="form-group full-width">
+              <label>Nome do Cliente *</label>
+              <input type="text" id="customerName" class="form-control" placeholder="Ex: João da Silva" required>
+            </div>
+
+            <div class="form-group">
+              <label>Telefone / WhatsApp</label>
+              <input type="text" id="customerPhone" class="form-control" placeholder="(11) 99999-9999">
+            </div>
+
+            <!-- SEÇÃO DE QUANTIDADE DE ITENS PRINCIPAIS -->
+            <div class="form-group full-width item-selection-box">
+              <label class="section-label"><i class="fas fa-boxes-stacked"></i> Quantidade de Itens Principais</label>
+              <div class="item-qty-grid">
+                <div class="qty-item-card">
+                  <div class="qty-title">
+                    <i class="fas fa-chair" style="color: #6366f1;"></i>
+                    <span>Jogos de Mesas</span>
+                    <small>(1 Mesa + 4 Cadeiras)</small>
+                  </div>
+                  <input type="number" id="qtyJogos" class="form-control qty-input" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="qty-item-card">
+                  <div class="qty-title">
+                    <i class="fas fa-chair" style="color: #3b82f6;"></i>
+                    <span>Cadeiras Avulsas</span>
+                    <small>(Apenas cadeira)</small>
+                  </div>
+                  <input type="number" id="qtyCadeiras" class="form-control qty-input" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="qty-item-card">
+                  <div class="qty-title">
+                    <i class="fas fa-table" style="color: #10b981;"></i>
+                    <span>Mesas Avulsas</span>
+                    <small>(Apenas mesa)</small>
+                  </div>
+                  <input type="number" id="qtyMesas" class="form-control qty-input" value="0" min="0" placeholder="0">
+                </div>
+              </div>
+            </div>
+
+            <!-- SEÇÃO DE QUANTIDADE DE FORROS POR COR -->
+            <div class="form-group full-width item-selection-box">
+              <label class="section-label"><i class="fas fa-palette"></i> Quantidade de Forros de Mesa por Cor</label>
+              <div class="colors-qty-grid">
+                <div class="color-qty-card">
+                  <span class="color-badge vermelha">🔴 Vermelho</span>
+                  <input type="number" id="qtyForroVermelho" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="color-qty-card">
+                  <span class="color-badge branca">⚪ Branco</span>
+                  <input type="number" id="qtyForroBranco" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="color-qty-card">
+                  <span class="color-badge roxa">🟣 Roxo</span>
+                  <input type="number" id="qtyForroRoxo" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="color-qty-card">
+                  <span class="color-badge preta">⚫ Preto</span>
+                  <input type="number" id="qtyForroPreto" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="color-qty-card">
+                  <span class="color-badge verde">🟢 Verde Escuro</span>
+                  <input type="number" id="qtyForroVerde" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="color-qty-card">
+                  <span class="color-badge azul">🔵 Azul Bebê</span>
+                  <input type="number" id="qtyForroAzul" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+
+                <div class="color-qty-card">
+                  <span class="color-badge rosa">🌸 Rosa Bebê</span>
+                  <input type="number" id="qtyForroRosa" class="form-control qty-input qty-forro" value="0" min="0" placeholder="0">
+                </div>
+              </div>
+            </div>
+
+            <!-- MULTI-DAY SELECTION -->
+            <div class="form-group">
+              <label>Data de Entrada (Check-in) *</label>
+              <input type="date" id="startDate" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Data de Saída (Check-out) *</label>
+              <input type="date" id="endDate" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+              <label>Valor Total do Pedido (R$) *</label>
+              <input type="number" id="totalAmount" class="form-control" value="350" step="any" min="0" placeholder="Ex: 350,50 ou 129,99" required>
+            </div>
+
+            <div class="form-group">
+              <label>Forma de Pagamento</label>
+              <select id="paymentMethod" class="form-control">
+                <option value="Pix">Pix</option>
+                <option value="Cartão de Crédito">Cartão de Crédito</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Transferência">Transferência Bancária</option>
+                <option value="Pendente">Pendente</option>
+              </select>
+            </div>
+
+            <!-- MARCAR RESERVA PAGA / NÃO PAGA -->
+            <div class="form-group full-width">
+              <label>Status do Pagamento *</label>
+              <div class="payment-toggle-group">
+                <label class="payment-radio-btn paid-option selected">
+                  <input type="radio" name="paymentStatus" id="radio-paid" value="paga" checked>
+                  <i class="fas fa-check-circle"></i> Reserva Paga
+                </label>
+
+                <label class="payment-radio-btn unpaid-option">
+                  <input type="radio" name="paymentStatus" id="radio-unpaid" value="nao_paga">
+                  <i class="fas fa-hourglass-half"></i> Não Paga / Pendente
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group full-width">
+              <label>Observações</label>
+              <textarea id="notes" class="form-control" rows="2" placeholder="Detalhes adicionais..."></textarea>
+            </div>
+
+            <!-- SUMMARY CALCULATOR -->
+            <div class="form-group full-width">
+              <div class="summary-box">
+                <div>
+                  <span>Duração: <strong id="calc-days">1 diária</strong></span>
+                </div>
+                <div>
+                  <span>Valor Total: <strong id="calc-total" style="color: #34d399;">R$ 350,00</strong></span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Salvar Reserva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Script -->
+  <script src="app.js"></script>
+
+</body>
+</html>
